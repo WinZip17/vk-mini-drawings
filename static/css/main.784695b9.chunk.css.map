@@ -1,1 +1,0 @@
-{"version":3,"sources":["App.css","Persik.css"],"names":[],"mappings":"AAAA,iBACI,oBACJ,CCFA,QACE,aAAc,CACd,SAAU,CACV,eAAgB,CAChB,gBACF","file":"main.784695b9.chunk.css","sourcesContent":[".link-decoration {\r\n    text-decoration: none;\r\n}\r\n",".Persik {\n  display: block;\n  width: 30%;\n  max-width: 240px;\n  margin: 20px auto;\n}\n"]}
