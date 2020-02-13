@@ -5,7 +5,6 @@ import ScreenSpinner from '@vkontakte/vkui/dist/components/ScreenSpinner/ScreenS
 import '@vkontakte/vkui/dist/vkui.css';
 import './App.css'
 import Home from './panels/Home';
-import Persik from './panels/Persik';
 import Epic from "@vkontakte/vkui/dist/components/Epic/Epic";
 import Tabbar from '@vkontakte/vkui/dist/components/Tabbar/Tabbar';
 import TabbarItem from '@vkontakte/vkui/dist/components/TabbarItem/TabbarItem';
@@ -13,7 +12,6 @@ import Icon28Newsfeed from '@vkontakte/icons/dist/28/newsfeed';
 import Icon28More from '@vkontakte/icons/dist/28/more';
 import Icon24Camera from '@vkontakte/icons/dist/24/camera';
 import Posts from "./panels/Posts";
-import Сatalog from "./panels/Сatalog";
 import PhotoPreview from "./panels/PhotoPreview";
 import ModalCard from "@vkontakte/vkui/dist/components/ModalCard/ModalCard";
 import ModalRoot from "@vkontakte/vkui/dist/components/ModalRoot/ModalRoot";
@@ -22,13 +20,20 @@ import Textarea from "@vkontakte/vkui/dist/components/Textarea/Textarea";
 import File from "@vkontakte/vkui/dist/components/File/File";
 import Div from '@vkontakte/vkui/dist/components/Div/Div';
 import Button from "@vkontakte/vkui/dist/components/Button/Button";
-
-
+import vkConnectPromise from '@vkontakte/vk-connect-promise';
+import Catalog from "./panels/Сatalog";
 
 //личный токен админа группы
-const token = "90367c6c798c106c4e98663bed2148d2dd86964270a75b329668efd46b8aa051b8aab8d98dceb5bbd8d5a";
+const token_admin = "";
 //id группы с которой работаем
-const group_id = "185650440";
+const group_id = "";
+
+//сервисный ключ приложения
+const service_token = ''
+
+//ключ сообщества
+const group_token = ''
+
 
 let userId = 0;
 let access_token_photo_glob = 0;
@@ -37,9 +42,8 @@ let albumIdForPhoto
 let imgGlob
 let imgForMessage
 let sendMessage
-let offset = 0
-let newArr = []
-
+let offset = 30
+let fetching = true
 
 const App = () => {
 	const [activeView, setActiveView] = useState('post');
@@ -53,16 +57,85 @@ const App = () => {
 	const [activeModal, setActiveModal] = useState('subscription')
 	const [checkMessage, setcheckMessage] = useState(false)
 	const [img, setImg] = useState(null)
-	const [imgUrl, setImgUrl] = useState(null)
 	const [message,setMessage] = useState('')
 	const [access_token_photo, setAccess_token_photo] = useState(0)
-	const [fetching, setFetching] = useState(true)
 
 
 	useEffect(() => {
 		const urlParams = new URLSearchParams(window.location.search);
 		setLang(urlParams.get('vk_language' || "ru"))
-
+		connect.subscribe(({ detail: { type, data }}) => {
+			switch (type) {
+				case 'VKWebAppUpdateConfig':
+					const schemeAttribute = document.createAttribute('scheme');
+					schemeAttribute.value = data.scheme ? data.scheme : 'client_light';
+					document.body.attributes.setNamedItem(schemeAttribute);
+					break;
+				case 'VKWebAppAllowMessagesFromGroupResult':
+					setPopout(null)
+					isMessagesFromGroupAllowed()
+					break;
+				case 'VKWebAppAllowMessagesFromGroupFailed':
+					setPopout(null)
+					isMessagesFromGroupAllowed()
+					break;
+				case 'VKWebAppAccessTokenReceived':
+					if (access_token_photo === 0) {
+						setAccess_token_photo(data.access_token)
+						access_token_photo_glob = data.access_token
+						getAlbum(userId, data.access_token)
+					}
+					break;
+				case 'VKWebAppCallAPIMethodResult':
+					switch (data.request_id) {
+						case 'getUsers':
+							setPopout(null)
+							setUserArr(data.response)
+							break;
+						case 'getPosts':
+							setPopout(null)
+							setPostArr(postArr.concat(data.response.items))
+							break;
+						case 'checkMessage':
+							setPopout(null)
+							data.response.is_allowed === 0 ? setcheckMessage(false) : setcheckMessage(true)
+							break;
+						case 'userAlbums':
+							const find = "Мои рисунки, наброски";
+							const group = data.response.items
+							if (data.response.count === 0) {
+								createAlbum(find, find, access_token_photo_glob)
+							} else if (group.find(x => x.title === find) === undefined) {
+								createAlbum(find, find, access_token_photo_glob)
+							} else {
+								let albumId = group.find(x => x.title === find).id
+								albumIdForPhoto = albumId
+								postPhotoUrl(albumId, access_token_photo_glob)
+							}
+							break;
+						case 'createAlbum':
+							albumIdForPhoto = data.response.id
+							postPhotoUrl(data.response.id, access_token_photo_glob)
+							break;
+						case 'photoUrl':
+							postPhoto(data.response.upload_url, imgGlob, access_token_photo_glob, data.response.album_id)
+							break;
+						case 'photoSave':
+							imgForMessage = `photo${data.response[0].group_id}_${data.response[0].id}`
+							createMessage()
+							break;
+						case 'sendWall':
+							setPopout(null);
+							setActiveModal("sendResult")
+							setMessage('')
+							setImg(null)
+						default:
+							console.log(type)
+					}
+				default:
+					console.log(type);
+			}
+		});
 		async function fetchData() {
 			const user = await connect.send('VKWebAppGetUserInfo');
 			setUser(user);
@@ -71,84 +144,6 @@ const App = () => {
 		}
 		fetchData();
 		getPosts()
-	}, []);
-
-	useEffect(() => {
-			connect.subscribe(({ detail: { type, data }}) => {
-				if (type === 'VKWebAppUpdateConfig') {
-					const schemeAttribute = document.createAttribute('scheme');
-					schemeAttribute.value = data.scheme ? data.scheme : 'client_light';
-					document.body.attributes.setNamedItem(schemeAttribute);
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "getUsers") {
-					setPopout(null)
-					setUserArr(data.response)
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "getPosts") {
-					setPopout(null)
-					console.log(postArr.concat(data.response.items))
-					setPostArr(postArr.concat(data.response.items))
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "getPostsAdd") {
-					setPopout(null)
-					console.log(postArr.concat(data.response.items))
-					debugger
-					setPostArr(postArr.concat(data.response.items))
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "checkMessage") {
-					setPopout(null)
-					data.response.is_allowed === 0 ? setcheckMessage(false) : setcheckMessage(true)
-				}
-				if (type === 'VKWebAppAllowMessagesFromGroupResult' || type === 'VKWebAppAllowMessagesFromGroupFailed') {
-					setPopout(null)
-					isMessagesFromGroupAllowed()
-				}
-				if(type === 'VKWebAppAccessTokenReceived') {
-					if (access_token_photo === 0) {
-						setAccess_token_photo(data.access_token)
-						access_token_photo_glob = data.access_token
-						getAlbum(userId, data.access_token)
-					}
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "userAlbums") {
-					const find = "Мои рисунки, наброски";
-					const group = data.response.items
-					if (data.response.count === 0) {
-						createAlbum(find, find, access_token_photo_glob)
-					} else if (group.find(x => x.title === find) === undefined) {
-						createAlbum(find, find, access_token_photo_glob)
-					} else {
-						let albumId = group.find(x => x.title === find).id
-						albumIdForPhoto = albumId
-						postPhotoUrl(albumId, access_token_photo_glob)
-					}
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "createAlbum") {
-					albumIdForPhoto = data.response.id
-					postPhotoUrl(data.response.id, access_token_photo_glob)
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "photoUrl") {
-					setImgUrl(data.response.upload_url);
-					postPhoto(data.response.upload_url, imgGlob, access_token_photo_glob, data.response.album_id)
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "photoSave") {
-					imgForMessage = `photo${data.response[0].owner_id}_${data.response[0].id}`
-					createMessage()
-				}
-				if (type === 'VKWebAppCallAPIMethodResult' && data.request_id === "sendWall") {
-					setPopout(null);
-					setActiveModal("sendResult")
-					setMessage('')
-					setImg(null)
-				}
-			});
-		},
-		[],
-	);
-
-
-
-	useEffect(() => {
 		window.addEventListener("scroll", handleScroll);
 		return () => {
 			window.removeEventListener("scroll", handleScroll);
@@ -163,16 +158,15 @@ const App = () => {
 			document.body.offsetHeight, document.documentElement.offsetHeight,
 			document.body.clientHeight, document.documentElement.clientHeight
 		);
-		if (innerHeight+currentScroll > scrollHeight*0.80 && fetching && innerHeight+1000 < currentScroll) {
-			setFetching(false);
-			offset = offset + 40
+		if (innerHeight+currentScroll > scrollHeight*0.70 && fetching && innerHeight+1000 < currentScroll) {
+			fetching = false;
 			getPostsAdd()
 		}
 	};
 
 
 	const addGroup = () => {
-		connect.send("VKWebAppJoinGroup", {"group_id": 185650440});
+		connect.send("VKWebAppJoinGroup", {"group_id": +group_id});
 	}
 
 	const go = e => {
@@ -184,22 +178,32 @@ const App = () => {
 		setActivePanel('photo')
 	}
 
-	const getPostsAdd = () => {
+	const getPostsAdd = async () =>  {
 		setPopout(<ScreenSpinner size='large' />)
-		connect.send("VKWebAppCallAPIMethod", {
-			"method": "wall.get",
-			"request_id": "getPostsAdd",
-			"params": {
-				"filters": 'post',
-				"owner_id": '-113161053',
-				"count": 40,
-				"v": "5.105",
-				// "access_token": '90367c6c798c106c4e98663bed2148d2dd86964270a75b329668efd46b8aa051b8aab8d98dceb5bbd8d5a',
-				"access_token": '85685eaa85685eaa85685eaa2d8504b3b58856885685eaad8e8ae5c720f4db08e7e9ee0',
-				'lang' : lang,
-				'offset': offset
-			}
-		});
+		vkConnectPromise
+			.send("VKWebAppCallAPIMethod", {
+				"method": "wall.get",
+				"request_id": "getPostsAdd",
+				"params": {
+					"filters": 'post',
+					"owner_id": `-${group_id}`,
+					"count": 50,
+					"v": "5.105",
+					"access_token": service_token,
+					'lang' : lang,
+					'offset': offset
+				}
+			})
+			.then(data => {
+				setPostArr(postArr.concat(data.response.items))
+				offset = offset + 30
+				setPopout(null);
+				fetching = true
+			})
+			.catch(error => {
+				// Handling an error
+			});
+
 	}
 
 	const getPosts = () => {
@@ -208,12 +212,11 @@ const App = () => {
 			"request_id": "getPosts",
 			"params": {
 				"filters": 'post',
-				"owner_id": '-113161053',
-				"count": 60,
+				"owner_id": `-${group_id}`,
+				"count": 30,
 				"v": "5.105",
-				"access_token": '85685eaa85685eaa85685eaa2d8504b3b58856885685eaad8e8ae5c720f4db08e7e9ee0',
-				'lang' : lang,
-				'offset': offset
+				"access_token": service_token,
+				'lang' : lang
 			}
 		});
 	}
@@ -224,9 +227,9 @@ const App = () => {
 			"request_id": "checkMessage",
 			"params": {
 				"user_id": userId,
-				"group_id": '185650440',
+				"group_id": group_id,
 				"v": "5.105",
-				"access_token": '4cf0c9c3b79670ff25922bc47c357ca124e281ed8207cf2507d4fa033792e483e81d94890a085d5509caa',
+				"access_token": group_token,
 			}
 		});
 	}
@@ -248,7 +251,7 @@ const App = () => {
 		// let data = +new Date();
 		// let postData = Math.round(data/1000)+86400; "publish_date": +postData,
 		connect.send("VKWebAppCallAPIMethod", {"method": "wall.post", "request_id": "sendWall", "params": {"owner_id": `-${group_id}`, "from_group": "1",
-				"signed": "0", "message": sendMessage, "attachments": attachments, "guid": guid, "v":"5.103", "access_token": token}});
+				"signed": "0", "message": sendMessage, "attachments": attachments, "guid": guid, "v":"5.103", "access_token": token_admin}});
 	}
 
 	const modal = (
@@ -406,7 +409,7 @@ const App = () => {
 				<PhotoPreview id='photo' go={go} photo={photo}/>
 			</View>
 			<View activePanel={'people'} popout={popout} id="catalog">
-				<Сatalog setPopout={setPopout} id='people' fetchedUser={fetchedUser} go={go}
+				<Catalog setPopout={setPopout} id='people' fetchedUser={fetchedUser} go={go}
 						 userArr={userArr} lang={lang} checkMessage={checkMessage} setcheckMessage={setcheckMessage}
 					isMessagesFromGroupAllowed={isMessagesFromGroupAllowed}/>
 			</View>
