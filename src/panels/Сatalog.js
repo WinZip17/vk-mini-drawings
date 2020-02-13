@@ -5,18 +5,14 @@ import PanelHeader from '@vkontakte/vkui/dist/components/PanelHeader/PanelHeader
 import Button from '@vkontakte/vkui/dist/components/Button/Button';
 import Group from '@vkontakte/vkui/dist/components/Group/Group';
 import Cell from '@vkontakte/vkui/dist/components/Cell/Cell';
-import Div from '@vkontakte/vkui/dist/components/Div/Div';
 import Avatar from '@vkontakte/vkui/dist/components/Avatar/Avatar';
-import Header from '@vkontakte/vkui/dist/components/Header/Header';
 import Switch from '@vkontakte/vkui/dist/components/Switch/Switch';
 import PullToRefresh from '@vkontakte/vkui/dist/components/PullToRefresh/PullToRefresh';
 import List from '@vkontakte/vkui/dist/components/List/List';
-import {GoogleSpreadsheet} from "google-spreadsheet";
 import connect from "@vkontakte/vk-connect";
 import {getTable} from "../api";
 import ScreenSpinner from "@vkontakte/vkui/dist/components/ScreenSpinner/ScreenSpinner";
 import FixedLayout from "@vkontakte/vkui/dist/components/FixedLayout/FixedLayout";
-import Separator from "@vkontakte/vkui/dist/components/Separator/Separator";
 
 const getRandomInt = (min, max) => {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -98,8 +94,7 @@ const Catalog = (props) => {
 			</Group>
 		</PullToRefresh>
         <FixedLayout vertical="bottom">
-
-                <Button target='_blanck' mode="secondary" className='button-fix' size="xl" href='https://vk.com/app5619682_-113161053#467432' > Попасть в каталог </Button>
+                <Button target='_blanck' className='button-fix' size="xl" href='https://vk.com/app5619682_-113161053#467432' > Попасть в каталог </Button>
         </FixedLayout>
 
 	</Panel>

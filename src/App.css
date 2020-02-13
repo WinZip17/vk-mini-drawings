@@ -37,8 +37,16 @@
 
 .fix-margin-icon {
     margin-top: 16px;
+    cursor: pointer;
+    margin-left: auto;
+    text-decoration: none;
 }
 
+.fix-link {
+    width: 100%;
+    display: flex;
+    text-decoration: none;
+}
 
 .photo-preview {
     width: 97%;

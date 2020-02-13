@@ -53,12 +53,12 @@ const Posts = ({ id, postArr,  showPhoto, setActiveModal }) => {
 							return <div className='photo-div' key={p.id}><img key={p.id} className='photo-post' src={p.sizes[lastItem].url} alt={'img'} onClick={() => showPhoto(p.sizes[lastItem].url)} /></div>
 						})}</div>
 							<Separator wide />
-							<Button mode="secondary" className='fix-margin-icon' target='_blank' href={`https://vk.com/moiresunke?w=wall${p.owner_id}_${p.id}`}>Обсудить</Button>
-							{/*<a target='_blank' href={`https://vk.com/moiresunke?w=wall${p.owner_id}_${p.id}`} > <Icon24CommentOutline className='fix-margin-icon'/></a>*/}
+
+							<a target='_blank' className='fix-link' href={`https://vk.com/moiresunke?w=wall${p.owner_id}_${p.id}`} > <Button mode="secondary" className='fix-margin-icon' >Обсудить</Button></a>
 						</Div>
 						}
 						<FixedLayout vertical="bottom">
-								<Button mode="secondary" before={<Icon24OpenIn/>} size="xl" onClick={() => setActiveModal('sendPost')} > Предложить новость </Button>
+								<Button before={<Icon24OpenIn/>} size="xl" onClick={() => setActiveModal('sendPost')} > Предложить новость </Button>
 						</FixedLayout>
 
 					</Div>
