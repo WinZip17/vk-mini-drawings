@@ -9,12 +9,11 @@ import Div from '@vkontakte/vkui/dist/components/Div/Div';
 import Separator from '@vkontakte/vkui/dist/components/Separator/Separator';
 import Avatar from '@vkontakte/vkui/dist/components/Avatar/Avatar';
 import moment from "moment";
-import Icon24CommentOutline from '@vkontakte/icons/dist/24/comment_outline';
 import FixedLayout from "@vkontakte/vkui/dist/components/FixedLayout/FixedLayout";
 import Icon24OpenIn from '@vkontakte/icons/dist/24/open_in';
 
 
-const Posts = ({ id, postArr,  showPhoto, setActiveModal }) => {
+const Posts = ({ id, postArr,  showPhoto, setActiveModal, groupInfo }) => {
 
 	useEffect(() => {
 	}, []);
@@ -26,9 +25,11 @@ const Posts = ({ id, postArr,  showPhoto, setActiveModal }) => {
 
 	const getPhotoArr = (arrDoc) => {
 		let photoArr = []
-		for (let i = 0; i < arrDoc.length; i++) {
-			if (arrDoc[i].type === "photo") {
-				photoArr.push(arrDoc[i].photo)
+		if(arrDoc) {
+			for (let i = 0; i < arrDoc.length; i++) {
+				if (arrDoc[i].type === "photo") {
+					photoArr.push(arrDoc[i].photo)
+				}
 			}
 		}
 		return photoArr
@@ -41,10 +42,10 @@ const Posts = ({ id, postArr,  showPhoto, setActiveModal }) => {
 				return <Group key={p.id}>
 					<Div>
 						<Cell
-							before={<Avatar  src="https://sun1-25.userapi.com/c857616/v857616788/170f9b/EKExqwLJWgs.jpg" size={48}></Avatar>}
+							before={<Avatar  src={groupInfo && groupInfo.photo_50} size={48}></Avatar>}
 							description={getDate(p.date)}
 						>
-							<a className='text-decor-none' target='_blank' href='https://vk.com/moiresunke'>Мои рисунки, наброски | Бот</a>
+							<a className='text-decor-none' target='_blank' href='https://vk.com/moiresunke'>{groupInfo && groupInfo.name}</a>
 						</Cell>
 						{p.text}
 						{getPhotoArr(p.attachments).length > 0 && <Div ><div className='photo-shell'>{getPhotoArr(p.attachments).map((p) => {

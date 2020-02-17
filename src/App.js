@@ -4,7 +4,6 @@ import View from '@vkontakte/vkui/dist/components/View/View';
 import ScreenSpinner from '@vkontakte/vkui/dist/components/ScreenSpinner/ScreenSpinner';
 import '@vkontakte/vkui/dist/vkui.css';
 import './App.css'
-import Home from './panels/Home';
 import Epic from "@vkontakte/vkui/dist/components/Epic/Epic";
 import Tabbar from '@vkontakte/vkui/dist/components/Tabbar/Tabbar';
 import TabbarItem from '@vkontakte/vkui/dist/components/TabbarItem/TabbarItem';
@@ -22,17 +21,6 @@ import Div from '@vkontakte/vkui/dist/components/Div/Div';
 import Button from "@vkontakte/vkui/dist/components/Button/Button";
 import vkConnectPromise from '@vkontakte/vk-connect-promise';
 import Catalog from "./panels/Сatalog";
-
-//личный токен админа группы
-const token_admin = "";
-//id группы с которой работаем
-const group_id = "";
-
-//сервисный ключ приложения
-const service_token = ''
-
-//ключ сообщества
-const group_token = ''
 
 
 let userId = 0;
@@ -59,6 +47,7 @@ const App = () => {
     const [img, setImg] = useState(null)
     const [message, setMessage] = useState('')
     const [access_token_photo, setAccess_token_photo] = useState(0)
+    const [groupInfo, setGroupInfo] = useState(null)
 
 
     useEffect(() => {
@@ -129,9 +118,15 @@ const App = () => {
                             setActiveModal("sendResult")
                             setMessage('')
                             setImg(null)
+                            break;
+                        case 'getGroup':
+                            setPopout(null);
+                            setGroupInfo(data.response[0])
+                            break;
                         default:
                             console.log(type)
                     }
+                    break;
                 default:
                     console.log(type);
             }
@@ -146,6 +141,7 @@ const App = () => {
 
         fetchData();
         getPosts()
+        getGroupInfo()
         window.addEventListener("scroll", handleScroll);
         return () => {
             window.removeEventListener("scroll", handleScroll);
@@ -160,7 +156,7 @@ const App = () => {
             document.body.offsetHeight, document.documentElement.offsetHeight,
             document.body.clientHeight, document.documentElement.clientHeight
         );
-        if (innerHeight + currentScroll > scrollHeight * 0.70 && fetching && innerHeight + 1000 < currentScroll) {
+        if (innerHeight + currentScroll > scrollHeight * 0.95 && fetching && innerHeight + 1000 < currentScroll) {
             fetching = false;
             getPostsAdd()
         }
@@ -200,7 +196,7 @@ const App = () => {
                 setPostArr(postArr.concat(data.response.items))
                 offset = offset + 30
                 setPopout(null);
-                fetching = true
+                setTimeout(() => fetching = true, 4000);
             })
             .catch(error => {
                 // Handling an error
@@ -216,6 +212,20 @@ const App = () => {
                 "filters": 'post',
                 "owner_id": `-${group_id}`,
                 "count": 30,
+                "v": "5.105",
+                "access_token": service_token,
+                'lang': lang
+            }
+        });
+    }
+
+    const getGroupInfo = () => {
+        connect.send("VKWebAppCallAPIMethod", {
+            "method": "groups.getById",
+            "request_id": "getGroup",
+            "params": {
+                "fields": 'description',
+                "group_ids": `${group_id}`,
                 "v": "5.105",
                 "access_token": service_token,
                 'lang': lang
@@ -250,8 +260,8 @@ const App = () => {
         let attachments = `${imgForMessage}`;
         //сгенерированный guid
         let guid = Math.floor(1000000000 + Math.random() * (9000000000 + 1 - 1000000000));
-        // let data = +new Date();
-        // let postData = Math.round(data/1000)+86400; "publish_date": +postData,
+        let data = +new Date();
+        let postData = Math.round(data/1000)+86400;
         connect.send("VKWebAppCallAPIMethod", {
             "method": "wall.post", "request_id": "sendWall", "params": {
                 "owner_id": `-${group_id}`,
@@ -259,6 +269,7 @@ const App = () => {
                 "signed": "0",
                 "message": sendMessage,
                 "attachments": attachments,
+                "publish_date": +postData,
                 "guid": guid,
                 "v": "5.103",
                 "access_token": token_admin
@@ -271,8 +282,8 @@ const App = () => {
             <ModalCard
                 id='subscription'
                 onClose={() => setActiveModal(null)}
-                icon={<Avatar src="https://sun1-25.userapi.com/c857616/v857616788/170f9b/EKExqwLJWgs.jpg" size={72}/>}
-                caption={<span><h1>Мои рисунки, наброски | Бот </h1>Мини приложение предлагает Вам <br/> подписаться на сообщество</span>}
+                icon={<Avatar src={groupInfo && groupInfo.photo_50} size={72}/>}
+                caption={<span><h1>{groupInfo && groupInfo.name}</h1>Мини приложение предлагает Вам <br/> подписаться на сообщество</span>}
                 actions={[{
                     title: 'Подписаться',
                     mode: 'primary',
@@ -340,7 +351,7 @@ const App = () => {
         });
     };
 
-//отправка фотки на сервер
+    //отправка фотки на сервер
     const postPhoto = (url, photo, newToken, album_id) => {
         let formData = new FormData();
         formData.append('photo', photo);
@@ -368,7 +379,7 @@ const App = () => {
     };
 
 
-//сохранение фотки
+    //сохранение фотки
     const savePhoto = (server, photos_list, hash, newToken, album_id) => {
         connect.send("VKWebAppCallAPIMethod", {
             "method": "photos.save", "request_id": "photoSave", "params": {
@@ -383,7 +394,7 @@ const App = () => {
     };
 
 
-//получение списка альбомов пользователя
+    //получение списка альбомов пользователя
     const getAlbum = (id, nToken) => {
         connect.send("VKWebAppCallAPIMethod", {
             "method": "photos.getAlbums", "request_id": "userAlbums", "params": {
@@ -392,7 +403,7 @@ const App = () => {
         });
     }
 
-//создание албома если его нет
+    //создание албома если его нет
     const createAlbum = (title, description, nToken) => {
         connect.send("VKWebAppCallAPIMethod", {
             "method": "photos.createAlbum", "request_id": "createAlbum", "params": {
@@ -401,7 +412,7 @@ const App = () => {
         });
     }
 
-//получение токена на работу с фото
+    //получение токена на работу с фото
     const gerTokenUser = () => {
         connect.send("VKWebAppGetAuthToken", {"app_id": app_id, "scope": "photos"});
     }
@@ -423,7 +434,7 @@ const App = () => {
         }>
             <View activePanel={activePanel} popout={popout} id="post" modal={modal}>
                 <Posts id='home' fetchedUser={fetchedUser} go={go} setPopout={setPopout} lang={lang} postArr={postArr}
-                       offset={offset}
+                       offset={offset} groupInfo={groupInfo}
                        showPhoto={showPhoto} getPosts={getPosts} setActiveModal={setActiveModal}/>
                 <PhotoPreview id='photo' go={go} photo={photo}/>
             </View>
